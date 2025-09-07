@@ -1,0 +1,371 @@
+---
+title: "STATS 506 Problem Set 1"
+author: "Lindsey Lin"
+format: pdf
+editor: visual
+---
+
+## Problem 1 – Abalone Data
+
+a\. Import the data into a `data.frame` in R. Use the information in the “abalone.names” file to give appropriate column names.
+
+```{r}
+abalone <- read.csv("abalone/abalone.data", header = FALSE)
+
+names(abalone) <- c("sex", 
+                    "length", 
+                    "diameter", 
+                    "height", 
+                    "whole_weight", 
+                    "shucked_weight",
+                    "viscera_weight", 
+                    "shell_weight", 
+                    "rings")
+```
+
+b\. The data contains information on three different sexes of abalone. Report the **number of observations** belonging to each sex.
+
+Answer: There're 1307 female abalones, 1342 infants, and 1528 male abalones in this dataset.
+
+```{r}
+table(abalone$sex)
+```
+
+c\. Use the data to answer the following questions:
+
+1.  Which weight has the **highest correlation with rings**?
+
+    Answer: Shell weight has the highest correlation with rings (≈ 0.6276).
+
+    ```{r}
+    cor_whole <- cor(abalone$whole_weight, abalone$rings)
+    cor_shucked <- cor(abalone$shucked_weight, abalone$rings)
+    cor_viscera <- cor(abalone$viscera_weight, abalone$rings)
+    cor_shell <- cor(abalone$shell_weight, abalone$rings)
+
+    correlations <- c(WholeWeight = cor_whole,
+                      ShuckedWeight = cor_shucked,
+                      VisceraWeight = cor_viscera,
+                      ShellWeight = cor_shell)
+    correlations
+    ```
+
+2.  For **that weight**, which sex has the highest correlation?
+
+    Answer: Infant abalones show the strongest correlation between shell weight and rings (≈ 0.7254)
+
+    ```{r}
+    female_data <- subset(abalone, sex == "F")
+    cor_female <- cor(female_data$shell_weight, female_data$rings)
+
+    infant_data <- subset(abalone, sex == "I")
+    cor_infant <- cor(infant_data$shell_weight, infant_data$rings)
+
+    male_data <- subset(abalone, sex == "M")
+    cor_male <- cor(male_data$shell_weight, male_data$rings)
+
+    sex_correlations <- c(Female = cor_female,
+                          Infant = cor_infant,
+                          Male   = cor_male)
+
+    sex_correlations
+    ```
+
+3.  What are the **weights** of the abalone with the **most rings**?
+
+    Answer: The abalone with the maximum number of rings (29) is a female with whole weight of 1.8075 grams, shucked weight of 0.7055 grams, viscera weight of 0.3215 grams, and shell weight of 0.475 grams.
+
+    ```{r}
+    abalone[which(abalone$rings == max(abalone$rings)), 
+            c("sex", "whole_weight", "shucked_weight", 
+              "viscera_weight", "shell_weight", "rings")]
+    ```
+
+4.  What **percentage** of abalones have a **viscera weight larger than their shell weight**?
+
+    Answer: About 6.5119% of abalones have a viscera weight larger than their shell weight.
+
+    ```{r}
+    round(mean(abalone$viscera_weight > abalone$shell_weight) * 100, 4)
+    ```
+
+d\. Create a **table of correlations** between **weights and rings**, within **each sex**. The columns should be the four weights, and the rows should be the sexes.
+
+```{r}
+weights <- c("whole_weight", "shucked_weight", "viscera_weight", "shell_weight")
+
+corr_table <- matrix(NA, 
+                     nrow = 3, 
+                     ncol = length(weights), 
+                     dimnames = list(c("F","I","M"), weights))
+
+for (s in c("F","I","M")) {
+  sub_data <- subset(abalone, sex == s)
+  for (w in weights) {
+    corr_table[s, w] <- round(cor(sub_data[[w]], sub_data$rings), 4)
+  }
+}
+
+rownames(corr_table) <- c("Female","Infant","Male")
+corr_table
+```
+
+e\. Carry out a series of t-tests to examine **whether the number of rings differs across the three sexes**. Present the **R output** and **interpret the results**. (You may use an existing R function to carry out the t-test, or for **minor extra credit**, manually write your own calculation of the t-test p-values.)
+
+Answer: From the p-values below, we can see that the number of rings differ significantly across the three sexes.
+
+```{r}
+t_FM <- t.test(abalone$rings[abalone$sex == "F"], abalone$rings[abalone$sex == "M"])
+t_FI <- t.test(abalone$rings[abalone$sex == "F"], abalone$rings[abalone$sex == "I"])
+t_IM <- t.test(abalone$rings[abalone$sex == "I"], abalone$rings[abalone$sex == "M"])
+```
+
+```{r}
+t_FM
+t_FI
+t_IM
+```
+
+## Problem 2 – Food Expenditure Data
+
+a\. Import the data into a `data.frame` in R.
+
+```{r}
+food <- read.csv("food_expenditure.csv")
+```
+
+b\. Clean up the variable names. Simplify them.
+
+```{r}
+names(food) <- c("id", 
+                 "age", 
+                 "household_size",
+                 "state",
+                 "currency",
+                 "total_food_exp",
+                 "grocery_exp",
+                 "dining_exp",
+                 "misc_exp",
+                 "num_dine_out",
+                 "alcohol_included",
+                 "food_assistance")
+```
+
+c\. **Restrict the data to those paying in US dollars** (USD). Show that it worked by confirming the number of observations before and after restricting the data.
+
+Answer: There's 262 observations before restricting the data, 230 observations after restricting the data.
+
+```{r}
+nrow(food)
+table(food$currency)
+```
+
+```{r}
+food <- food[food$currency == "USD", ]
+nrow(food)
+```
+
+There are a number of issues with this data, likely due to the self-reported nature. For each of the following variables, **clean them by removing any row with inappropriate data**. For each variable, **explain your rules for eliminating rows**. For example, for the age variable, you might state “Excluded all minors under the age of 18”. (Note that there is no “right” answer here, the goal is to (1) choose reasonable rules and (2) carry out the corresponding code.)
+
+d\. The variable related to **age**.
+
+Cleaning rule: Since the survey is about household food responsibilities, respondents should be adults. So I decided to exclude minors under 18 and implausible ages (reporting age greater than 100 is likely an input error.) I also excluded negative or missing values.
+
+```{r}
+summary(food$age)
+```
+
+```{r}
+food_clean <- subset(food, (age >= 18 & age <= 100))
+summary(food_clean$age)
+```
+
+e\. The variable related to **state**.
+
+Cleaning rule: I standardized the state field to two-letter uppercase postal codes and then kept only entries that are valid U.S. postal abbreviations. I used `state.abb` as the base list and expanded it to include `DC` and **`PR`** because the dataset contains observations from the District of Columbia and Puerto Rico and I did not want to drop them. I excluded rows where the state was missing/blank, or not in the allowed list (the problematic states entries are shown below)
+
+```{r}
+valid_states <- c(state.abb, "DC", "PR")
+food_clean$state <- toupper(food_clean$state)
+
+subset(food_clean, !(state %in% valid_states)) # problematic states
+```
+
+```{r}
+food_clean <- subset(food_clean, state %in% valid_states)
+```
+
+f\. The four variables related to **food expenditures**.
+
+Cleaning rule:
+
+1.  For the grocery, dining, and miscellaneous expenditure variables, I treated missing values (NA) as zero. This choice reflects the idea that a respondent reporting no value for a given category likely spent nothing in that category last week.
+
+    ```{r}
+    food_clean$grocery_exp[is.na(food_clean$grocery_exp)] <- 0
+    food_clean$dining_exp[is.na(food_clean$dining_exp)]   <- 0
+    food_clean$misc_exp[is.na(food_clean$misc_exp)]       <- 0
+    ```
+
+2.  The original `total_food_exp` variable was stored as a character instead of numeric, so I converted it to numeric first. After imputing missing values in the grocery, dining, and miscellaneous expenditure variables, I applied consistency checks to the `total_food_exp` variable.
+
+    Specifically, if the total was missing, less than or equal to zero while any component was positive, or smaller than the sum of the three components, I replaced the total with the sum of grocery, dining, and miscellaneous expenditures. This ensures that every respondent has a total food expenditure value while preserving their reported subcategory spending.
+
+    ```{r}
+    food_clean$total_food_exp <- as.numeric(food_clean$total_food_exp)
+    ```
+
+    ```{r}
+    comp_sum <- food_clean$grocery_exp + food_clean$dining_exp + food_clean$misc_exp
+
+    idx_fix <- is.na(food_clean$total_food_exp) | 
+               (food_clean$total_food_exp <= 0 & comp_sum > 0) |
+               (food_clean$total_food_exp < comp_sum)
+
+    food_clean$total_food_exp[idx_fix] <- comp_sum[idx_fix]
+    ```
+
+g\. The variable related to **number of times dining out**.
+
+Cleaning rule: For the dining-out variable, I found cases where respondents reported a positive number of times dining out (`num_dine_out > 0`) but reported zero expenditure on dining (`dining_exp = 0`). Since this is inconsistent and suggests unreliable reporting, I excluded these rows from the dataset.
+
+```{r}
+subset(food_clean, (food_clean$num_dine_out > 0 & food_clean$dining_exp == 0))
+```
+
+```{r}
+food_clean <- subset(food_clean, !(food_clean$num_dine_out > 0 & food_clean$dining_exp == 0))
+```
+
+h\. Report your final number of observations after this cleaning.
+
+Answer: The final number of observations after the cleaning is 181.
+
+```{r}
+nrow(food_clean)
+```
+
+## Problem 3 – **Collatz Conjecture**
+
+```{r}
+library(glue)
+```
+
+a\. Write function `nextCollatz` that given a **positive integer**, computes the next number in its Collatz sequence. Be sure to provide a **reasonable error on an invalid input**. Be sure to **document your function** (see instructions above).
+
+-   Input: A positive integer
+
+-   Output: A positive integer
+
+```{r}
+#' Function to compute the next number in its Collatz sequence
+#' 
+#' @param n A positive integer
+#' @return The next number in its Collatz sequence
+
+nextCollatz <- function(n) {
+  # input validation
+  if (length(n) != 1) {
+    stop("Provide exactly one value.")
+  }
+  if (!is.finite(n)) {
+    stop("Input must be finite number (not NA/NaN/Inf).")
+  }
+  if(n < 1) {
+    stop("Input must be positive")
+  }
+  if(all.equal(n, as.integer(n)) != TRUE) {
+    stop("Input must be an integer")
+  }
+  
+  if (n %% 2 == 0) {
+    return (n/2)
+  } 
+  else {
+    return (3*n + 1)
+  }
+}
+```
+
+```{r}
+nextCollatz(5)
+```
+
+```{r}
+nextCollatz(16)
+```
+
+b\. Create a function `collatzSequence` that returns the Collatz sequence for a given input. Use your `nextCollatz` function to perform the calculation. Be sure to provide a reasonable error on an invalid input. Be sure to document your function (see instructions above).
+
+-   Input: A positive integer
+
+-   Output: A **list** containing the vector of the entries in the Collatz sequence, **beginning at the input** and ending at 1; and the **length** of the Collatz sequence.
+
+```{r}
+#' Generate the Collatz sequence for a given integer
+#' 
+#' @param n A positive integer
+#' @return A list with two elements:
+#'   \describe{
+#'     \item{sequence}{The vector of numbers in the Collatz sequence, from n down to 1}
+#'     \item{length}{The length of the sequence}
+#'   }
+
+collatzSequence <- function(n) {
+  # input validation
+  if (length(n) != 1) {
+    stop("Provide exactly one value.")
+  }
+  if (!is.finite(n)) {
+    stop("Input must be finite number (not NA/NaN/Inf).")
+  }
+  if(n < 1) {
+    stop("Input must be positive")
+  }
+  if(all.equal(n, as.integer(n)) != TRUE) {
+    stop("Input must be an integer")
+  }
+  
+  seq_val <- n
+  
+  while (n != 1) {
+    n <- nextCollatz(n)
+    seq_val <- c(seq_val, n)
+  }
+  
+  return (list(sequence = seq_val, length = length(seq_val)))
+}
+```
+
+```{r}
+collatzSequence(5)
+```
+
+```{r}
+collatzSequence(19)
+```
+
+c\. Use these functions to find the shortest and longest Collatz sequence starting with values between 100 and 500, inclusive. In the case of ties, report the lowest starting value.
+
+```{r}
+starting <- 100:500
+lens <- numeric(length(starting))
+
+for (i in seq_along(starting)) {
+  n <- starting[i]
+  lens[i] <- collatzSequence(n)$length
+}
+
+min_len <- min(lens)
+min_starting <- min(starting[lens == min_len])
+
+max_len <- max(lens)
+max_starting <- min(starting[lens == max_len])
+```
+
+```{r}
+glue("Shortest sequence: start = {min_starting}, length of {min_len}")
+glue("Longest sequence:  start = {max_starting}, length of {max_len}")
+```
+
+**Disclosure:** I used ChatGPT to assist with writing function documentation in Problem 3, and to remind me of the appropriate R function (`t.test`) and its arguments for running the t-tests in Problem 1.
