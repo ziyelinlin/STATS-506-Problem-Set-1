@@ -5,6 +5,8 @@ format: pdf
 editor: visual
 ---
 
+#### GitHub Repository Link: <https://github.com/ziyelinlin/STATS-506-Problem-Set-1.git>
+
 ## Problem 1 – Abalone Data
 
 a\. Import the data into a `data.frame` in R. Use the information in the “abalone.names” file to give appropriate column names.
@@ -199,12 +201,17 @@ f\. The four variables related to **food expenditures**.
 
 Cleaning rule:
 
-1.  For the grocery, dining, and miscellaneous expenditure variables, I treated missing values (NA) as zero. This choice reflects the idea that a respondent reporting no value for a given category likely spent nothing in that category last week.
+1.  For the grocery, dining, and miscellaneous expenditure variables, I treated missing values (NA) as zero. This choice reflects the idea that a respondent reporting no value for a given category likely spent nothing in that category last week. Then I replaced negative values by zero for grocery, dining and misc expenditures.
 
     ```{r}
     food_clean$grocery_exp[is.na(food_clean$grocery_exp)] <- 0
     food_clean$dining_exp[is.na(food_clean$dining_exp)]   <- 0
     food_clean$misc_exp[is.na(food_clean$misc_exp)]       <- 0
+
+    food_clean <- subset(food_clean,
+                   grocery_exp     >= 0 &
+                   dining_exp      >= 0 &
+                   misc_exp        >= 0)
     ```
 
 2.  The original `total_food_exp` variable was stored as a character instead of numeric, so I converted it to numeric first. After imputing missing values in the grocery, dining, and miscellaneous expenditure variables, I applied consistency checks to the `total_food_exp` variable.
